@@ -19,7 +19,8 @@ n=50
 ##y10= = 2,57***--> log bruttostundenlohn für Realschüler
 ##y13=3.03 log bruttostundenlohn für Gymnasiasten
 ## Intercept: 2.699, 2.2*1.98+2.57*30.33+2.61*30.97+2.89*5.82+3.03*22.78+2.58*8.12
-## 
+
+#####Das kausale Modell simulieren#####
 x=c(10,10,10,13,13)
 X=sample(x,n,replace=T)
 df_X=data.frame(X)
@@ -31,7 +32,8 @@ for(i in 1:n)
   Y[i]=ifelse(X[i]==10,rlnorm(1, meanlog = 2.57, sdlog = 0.0001),rlnorm(1, meanlog = 3.03, sdlog = 0.02))+eps[i]
 }
 
-lm(Y~dataf[,3])
+E_YX=lm(Y~dataf[,3])
+#####Eine Beobachtung rot faerben#############
 factor=rep(0,n)
 X[3]=10
 Y[3]=10
@@ -42,14 +44,7 @@ X[13]=13
 Y[13]=20.69723
 factor[3]=1
 df<-data.frame(Y,dataf,factor)
-
-
-  ggplot(df,aes(x=as.factor(X),y=Y))+
-    geom_point(lwd=2.5)+
-    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")
-
-###Reverse Causality######################################################################################
-##########################################################################################################
+######Umgekehrte Kausalitaet#############################
 set.seed(60)
 eps=rnorm(n,0,2)
 YR=rlnorm(n,meanlog=3.03*0.4+2.57*0.6,sdlog=0.3)+eps
@@ -63,59 +58,32 @@ df_XR=data.frame(XR)
 datafR <- dummy_cols(df_XR)
 lm(YR~datafR[,3])
 ########################################################################################
-factorR=rep(0,n)
-XR[3]=10
-YR[3]=9
-XR[10]=10
-YR[10]=13.06582
-XR[13]=13
-YR[13]=20.69723
-factorR[3]=1
-df<-data.frame(YR,datafR,factorR)
-pdf(file="fig_data_R.pdf",width=7,height=7)
-print(
-  ggplot(df,aes(x=as.factor(XR),y=YR))+
-    geom_point(lwd=2.5)+
-    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
-  annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=G]-E[Y|X=R]=7.759")+
-    ylim(7,33)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
-dev.off()
-################Endogenität########################################################
-c=0.5###Correlation of the Unobservable Variable
+dfR<-data.frame(YR,datafR)
+#####Nicht observierbare, dritte Variable###############################################
+c=0.5###Korrelation mit der nicht-observierbaren Variable##############################
 set.seed(95)
-###This is a rough approximation, the correlation is downward biased. 
+###Nur eine Approximation, die wahre Korrelation ist etwas verzerrt####################
 mult_norm<- mvrnorm(n, c(1.5,0), matrix(c(0.5,c,c,0.5),2,2))
 error<- exp(mult_norm)
 eps1=error[,1]
 nu=error[,2]
 XE=ifelse(nu<=quantile(nu,probs=0.6),10,13)
 table(XE)
-YE=7+eps1#rlnorm(n,meanlog=3.03*0.4+2.57*0.6,sdlog=0.2)+eps1
-cor(p,YE)
+YE=7+eps1
 cor(XE,YE)
 df_XE=data.frame(XE)
 datafE <- dummy_cols(df_XE)
 res<-lm(YE~datafE[,3])
 ########################################################################################
-df<-data.frame(YE,datafE)
-pdf(file="fig_data_E.pdf",width=7,height=7)
+dfE<-data.frame(YE,datafE)
+#######Erstellen der Grafiken###########################################################
+pdf(file="fig_data_R.pdf",width=7,height=7)
 print(
-  ggplot(df,aes(x=as.factor(XE),y=YE))+
+  ggplot(dfR,aes(x=as.factor(XR),y=YR))+
     geom_point(lwd=2.5)+
     scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
-  annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=G]-E[Y|X=R]=7.749")+
+    annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=1]-E[Y|X=0]=7.759")+
     ylim(7,33)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
-dev.off()
-##############################################################################################
-
-
-df<-data.frame(Y,dataf,factor)
-
-pdf(file="fig_data.pdf",width=7,height=7)
-print(
-  ggplot(df,aes(x=as.factor(X),y=Y))+
-    geom_point(lwd=2.5)+
-    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+theme(legend.position = "none",text = element_text(size=rel(4.5))))
 dev.off()
 
 
@@ -124,65 +92,47 @@ print(
   ggplot(df,aes(x=as.factor(X),y=Y))+
     geom_point(lwd=2.5)+
     scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
-    annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=G]-E[Y|X=R]=7.877")+
+    annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=1]-E[Y|X=0]=7.877")+
+    ylim(7,33)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
+dev.off()
+
+pdf(file="fig_data_E.pdf",width=7,height=7)
+print(
+  ggplot(dfE,aes(x=as.factor(XE),y=YE))+
+    geom_point(lwd=2.5)+
+    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
+  annotate(geom="text", x=as.factor(10), y=20, label="E[Y|X=1]-E[Y|X=0]=7.749")+
     ylim(7,33)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
 dev.off()
 
 
 
+##############################################################################################
+pdf(file="fig_data.pdf",width=7,height=7)
+print(
+  ggplot(df,aes(x=as.factor(X),y=Y))+
+    geom_point(lwd=2.5)+
+    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+theme(legend.position = "none",text = element_text(size=rel(4.5))))
+dev.off()
+
 color<-c("black","red")
-
-
 pdf(file="fig_data_II.pdf",width=7,height=7)
 print(
   ggplot(df,aes(x=as.factor(X),y=Y,colour=as.factor(factor)))+
     geom_point(lwd=2.5)+
-scale_color_manual(values=color)+theme(legend.position = "none",text = element_text(size=rel(4.5)))+
-  scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
-  annotate(geom="text", x=as.factor(10), y=13.06582, label="E[Y|X=Realschule]",
-           color="red", lwd=5)+
-  annotate(geom="text", x=as.factor(13), y=20.69723, label="E[Y|X=Gymnasium]",
-           color="red", lwd=5))
+    scale_color_manual(values=color)+theme(legend.position = "none",text = element_text(size=rel(4.5)))+
+    scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
+    annotate(geom="text", x=as.factor(10), y=13.06582, label="E[Y|X=0]",
+             color="red", lwd=5)+
+    annotate(geom="text", x=as.factor(13), y=20.69723, label="E[Y|X=1]",
+             color="red", lwd=5))
 dev.off()
-
-
-# pdf(file="fig_data_IV.pdf",width=7,height=7)
-# print(
-#   ggplot(df,aes(x=as.factor(X),y=Y,colour=as.factor(factor)))+
-#     geom_point()+
-#     geom_abline(slope=beta,intercept=1000,col="red")+
-#     scale_color_manual(values=color)+theme(legend.position = "none"))
-# dev.off()
-
-
-  
-
-
-#########Counterfactual world########################
-
-# pdf(file="fig_data_VI.pdf",width=7,height=7)
-# print(
-#   ggplot(df,aes(x=X,y=Y,colour=as.factor(factor)))+
-#     geom_point()+
-#     geom_abline(slope=beta,intercept=1000,col="red")+
-#     scale_color_manual(values=color)+theme(legend.position = "none"))+
-#   annotate("segment", x = 14, xend = 16, y = 1500, yend = 1500,colour="aquamarine1",
-#            arrow = arrow(ends = "first", angle = 180, length = unit(.12,"cm")))
-# dev.off()
 
 color<-c("black","red", "aquamarine1")
 
 X[10]=13
 Y[10]=10
-#Y[89]=1750
-#X[12]=1
-#Y[12]=2300
-#X[20]=16
-#Y[20]=1300
-
 factor[10]=2
-#factor[12]=2
-#factor[20]=2
 df<-data.frame(Y,X,factor)
 
 pdf(file="fig_data_III.pdf",width=7,height=7)
@@ -204,8 +154,6 @@ print(
                color="blue")+
     scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn"))
 dev.off()
-
-
 pdf(file="fig_data_V.pdf",width=7,height=7)
 print(
   ggplot(df,aes(x=as.factor(X),y=Y,colour=as.factor(factor)))+
@@ -228,22 +176,29 @@ print(
     geom_point(lwd=3)+
     scale_color_manual(values=color)+theme(legend.position = "none",text = element_text(size=rel(4.5)))+
     geom_segment(data=df, 
-                 aes(x=as.factor(10), xend=as.factor(13), y=9, yend=9),
+                 aes(x=as.factor(10), xend=as.factor(13), y=10, yend=9),
                  arrow=arrow(length=unit(4.2, "mm")), lwd=1,
                  color="blue")+
     geom_segment(data=df, 
-                 aes(x=as.factor(10), xend=as.factor(13), y=9, yend=15),
+                 aes(x=as.factor(10), xend=as.factor(13), y=10, yend=15),
                  arrow=arrow(length=unit(4.2, "mm")), lwd=1,
                  color="blue")+
     geom_segment(data=df, 
-                 aes(x=as.factor(10), xend=as.factor(13), y=9, yend=20.69723),
+                 aes(x=as.factor(10), xend=as.factor(13), y=10, yend=20.69723),
                  arrow=arrow(length=unit(4.2, "mm")), lwd=1,
                  color="blue")+
-    annotate(geom="text", x=as.factor(13), y=20.69723, label="E[Y|X=Gymnasium]")+
+    annotate(geom="text", x=as.factor(13), y=20.69723, label="E[Y|X=1]")+
     annotate(geom="text", x=as.factor(13), y=12, label="?",
              color="red", lwd=18)+
     scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn"))
 dev.off()
+
+
+
+
+
+
+
 
 ################Endogenität########################################################
 c=-0.5###Correlation of the Unobservable Variable
@@ -270,7 +225,12 @@ print(
   ggplot(df,aes(x=as.factor(XE),y=YE))+
     geom_point(lwd=2.5)+
     scale_x_discrete(labels= label)+ labs(x = "Schulabschluss",y="Stundenlohn")+
-    annotate(geom="text", x=as.factor(10), y=10, label="E[Y|X=G]-E[Y|X=R]= 0.735 ",lwd=4)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
+    annotate(geom="text", x=as.factor(10), y=10, label="E[Y|X=1]-E[Y|X=0]= 0.735 ",lwd=4)+theme(legend.position = "none",text = element_text(size=rel(4.5))))
 dev.off()
+
+
+
+
+
 
 
